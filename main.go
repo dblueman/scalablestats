@@ -3,6 +3,7 @@ package scalablestats
 import (
    "fmt"
    "os"
+   "slices"
 )
 
 type Histogram struct {
@@ -22,18 +23,8 @@ func NewLinearHistogram(min, max, bins int) *Histogram {
    return &h
 }
 
-func index(val float32, thresholds []float32) int {
-   for i, t := range thresholds {
-      if val < t {
-         return i
-      }
-   }
-
-   return len(thresholds)-1
-}
-
 func (h *Histogram) Store(val float32) {
-   i := index(val, h.Thresholds)
+   i, _ := slices.BinarySearch(h.Thresholds, val)
    h.Counts[i]++
 }
 
@@ -44,13 +35,13 @@ func (h *Histogram) Percentile(threshold int) float32 {
       counts += count
    }
 
-   limit := counts * 100 / threshold
+   limit := counts * threshold / 100
    total := 0
 
    for i := 0; i < len(h.Counts); i++ {
       total += h.Counts[i]
 
-      if i > limit {
+      if total > limit {
          return h.Thresholds[i]
       }
    }
@@ -59,9 +50,7 @@ func (h *Histogram) Percentile(threshold int) float32 {
 }
 
 func (h *Histogram) Clear() {
-   for i := range h.Counts {
-      h.Counts[i] = 0
-   }
+   clear(h.Counts)
 }
 
 func (h *Histogram) Fprint(f *os.File) {
